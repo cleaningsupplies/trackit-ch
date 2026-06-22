@@ -537,6 +537,29 @@
             border: 1px solid var(--border);
         }
 
+        .data-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-export, .btn-import {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-mid);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            min-height: 44px;
+        }
+        .btn-export:active, .btn-import:active { background: var(--border); }
+
         /* ---- Nav ---- */
         nav {
             position: fixed;
@@ -707,6 +730,24 @@
             </div>
             <div class="info-box">
                 Notifications funktionieren nur wenn die App als PWA installiert ist (iOS 16.4+, Android). Teilen &#x2192; Zum Home-Bildschirm.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Daten</div>
+            <div class="data-actions">
+                <button class="btn-export" id="export-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export
+                </button>
+                <label class="btn-import" id="import-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Import
+                    <input type="file" id="import-input" accept=".json" hidden>
+                </label>
+            </div>
+            <div class="info-box">
+                Export speichert alle Eintr&auml;ge als JSON-Datei. Import stellt sie wieder her.
             </div>
         </div>
     </div>
@@ -1125,6 +1166,43 @@
                 scheduleReminder(time);
             }, target - now);
         }
+
+        // Export / Import
+        document.getElementById("export-btn").addEventListener("click", () => {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "trackit-ch-backup.json";
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast("Export gespeichert");
+        });
+
+        document.getElementById("import-input").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const imported = JSON.parse(ev.target.result);
+                    if (!imported.entries || !imported.supplements) {
+                        showToast("Ungueltige Datei");
+                        return;
+                    }
+                    if (!confirm(imported.entries.length + " Eintraege importieren? Bestehende Daten werden ersetzt.")) return;
+                    data = imported;
+                    saveData();
+                    renderHome();
+                    renderSettings();
+                    showToast("Import erfolgreich");
+                } catch (err) {
+                    showToast("Fehler beim Import");
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = "";
+        });
 
         // Init
         renderHome();
